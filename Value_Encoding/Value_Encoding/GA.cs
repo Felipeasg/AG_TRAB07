@@ -14,14 +14,49 @@ namespace Value_Encoding
         ArrayList generation;
         int populationSize;
         int genomeSize;
-        double x1min;
-        double x1max;
-        double x2min;
+        double x1min;        
+        double x1max;        
+        double x2min;        
         double x2max;
         int tourneySize;
+
+        public int TourneySize
+        {
+            get { return tourneySize; }
+            set { tourneySize = value; }
+        }
         public delegate double Function(double[] values);
 
         Function gaFunction;
+
+        int nbrIndvElitism;
+
+        public double X1min
+        {
+            get { return x1min; }
+            set { x1min = value; }
+        }
+        public double X1max
+        {
+            get { return x1max; }
+            set { x1max = value; }
+        }
+        public double X2min
+        {
+            get { return x2min; }
+            set { x2min = value; }
+        }
+        public double X2max
+        {
+            get { return x2max; }
+            set { x2max = value; }
+
+        }
+        public int NbrIndvElitism
+        {
+            get { return nbrIndvElitism; }
+            set { nbrIndvElitism = value; }
+        }
 
         internal Function GaFunction
         {
@@ -76,6 +111,8 @@ namespace Value_Encoding
 
             this.tourneySize = 1;
 
+            this.generation = new ArrayList();
+
         }
 
         public GA(double crossRate, double mutateRate, int populationSize, int genomeSize, bool elitism, double x1min, double x1max, double x2min, double x2max)
@@ -92,6 +129,8 @@ namespace Value_Encoding
             this.x2max = x2max;
 
             this.tourneySize = 1;
+
+            this.generation = new ArrayList();
         }
 
         public void GenerateInitialPopulation()
@@ -107,11 +146,94 @@ namespace Value_Encoding
 
         public void NextGenerationRoullete()
         {
+            ArrayList newGeneration = new ArrayList();
+            Random r1 = new Random(Guid.NewGuid().GetHashCode());
+            Random r2 = new Random(Guid.NewGuid().GetHashCode());
 
+            if (this.elitism)
+            {
+                this.generation.Sort(new GenomeComparer());
+
+                for (int i = 0; i < this.nbrIndvElitism; i++)
+                {
+                    //verificar se o melhor individuo esta na ultima ou primeira posicao
+                    //newGeneration.Add(this.generation[i]);
+                    newGeneration.Add(this.generation[(this.generation.Count - 1) - i]);
+                }
+            }
+
+            while(newGeneration.Count <= this.populationSize)
+            {
+
+                Genome indv1 = this.fitnessProportionateSelection();
+                Genome indv2 = this.fitnessProportionateSelection();
+                Genome child1 = new Genome(2);
+                Genome child2 = new Genome(2);
+
+                if (this.crossOverRate > r1.NextDouble())
+                {
+                    CrossOver(indv1, indv2, child1, child2);
+                }
+
+                if (this.mutationRate > r2.NextDouble())
+                {
+                    Mutate(child1);
+                    Mutate(child2);
+                }
+
+                newGeneration.Add(child1);
+                newGeneration.Add(child2);
+            }
+
+            this.generation.Clear();
+
+            this.generation = new ArrayList(newGeneration);
         }
 
         public void NextGenerationTourney()
         {
+            ArrayList newGeneration = new ArrayList();
+            Random r1 = new Random(Guid.NewGuid().GetHashCode());
+            Random r2 = new Random(Guid.NewGuid().GetHashCode());
+
+            if (this.elitism)
+            {
+                this.generation.Sort(new GenomeComparer());
+
+                for (int i = 0; i < this.nbrIndvElitism; i++)
+                {
+                    //verificar se o melhor individuo esta na ultima ou primeira posicao
+                    //newGeneration.Add(this.generation[i]);
+                    newGeneration.Add(this.generation[(this.generation.Count - 1) - i]);
+                }
+            }
+
+            while (newGeneration.Count <= this.populationSize)
+            {
+
+                Genome indv1 = this.tourneySelection();
+                Genome indv2 = this.tourneySelection();
+                Genome child1 = new Genome(2);
+                Genome child2 = new Genome(2);
+
+                if (this.crossOverRate > r1.NextDouble())
+                {
+                    CrossOver(indv1, indv2, child1, child2);
+                }
+
+                if (this.mutationRate > r2.NextDouble())
+                {
+                    Mutate(child1);
+                    Mutate(child2);
+                }
+
+                newGeneration.Add(child1);
+                newGeneration.Add(child2);
+            }
+
+            this.generation.Clear();
+
+            this.generation = new ArrayList(newGeneration);
         }
 
         Genome fitnessProportionateSelection()
@@ -121,7 +243,7 @@ namespace Value_Encoding
             for (int i = 0; i < this.populationSize; i++)
             {
                 Genome g = ((Genome) generation[i]);
-                g.Fitness = calculateFitness(g.Genes);
+                g.Fitness = this.calculateFitness(g.Genes);
                 totalFitness += g.Fitness;
             }
 
@@ -187,12 +309,40 @@ namespace Value_Encoding
 
         void CrossOver(Genome parent1, Genome parent2, Genome child1, Genome child2)
         {
+            Random r = new Random(Guid.NewGuid().GetHashCode());
+            double beta = r.NextDouble();
 
+            child1.Genes[0] = beta * parent1.Genes[0] + (1 - beta) * parent2.Genes[0];
+            child1.Genes[1] = beta * parent1.Genes[1] + (1 - beta) * parent2.Genes[1];
+
+            child2.Genes[0] = (1 - beta) * parent1.Genes[0] + beta * parent2.Genes[0];
+            child2.Genes[1] = (1 - beta) * parent1.Genes[1] + beta * parent2.Genes[1];
+
+
+            child1.Fitness = this.calculateFitness(child1.Genes);
+            child2.Fitness = this.calculateFitness(child2.Genes);
         }
 
         void Mutate(Genome individual)
         {
+            Random r = new Random(Guid.NewGuid().GetHashCode());
+            Random mutationValue = new Random(Guid.NewGuid().GetHashCode());
+            double[] values = new double[this.genomeSize];
 
+            individual.Genes[0] = r.NextDouble();
+            individual.Genes[1] = r.NextDouble();
+
+            individual.Fitness = this.calculateFitness(individual.Genes);
+
+           /* int idxIndividual = r.Next(0, generation.Count);
+
+            for (int i = 0; i < this.genomeSize; i++)
+            {
+                values[i] = mutationValue.NextDouble();
+                ((Genome)generation[idxIndividual]).Genes[i] = values[i];                  
+            }*/
+
+            //((Genome)generation[idxIndividual]).Fitness = this.gaFunction(values);
         }
 
         double calculateFitness(double[] values)
@@ -201,12 +351,37 @@ namespace Value_Encoding
             double[] x = new double[values.Length];
 
             x[0] = (((this.x1max - this.x1min) / 1) * values[0]) + this.x1min;
-            x[1] = (((this.x2max - this.x2min) / 1) * values[0]) + this.x2min;
+            x[1] = (((this.x2max - this.x2min) / 1) * values[1]) + this.x2min;
             //Implement the conversion to function domain using the genes and return fitness
 
-            this.gaFunction(x);
+            value = this.gaFunction(x);
           
             return value;
+        }
+
+        public double bestFitness()
+        {
+            ArrayList pop = new ArrayList(this.generation);
+
+            pop.Sort(new GenomeComparer());
+
+            return ((Genome)pop[pop.Count - 1]).Fitness;
+        }
+
+        public void getBest(out double[] values, out double fitness)
+        {
+            ArrayList pop = new ArrayList(this.generation);
+
+            pop.Sort(new GenomeComparer());
+
+            double[] x = new double[genomeSize];
+
+            x[0] = (((this.x1max - this.x1min) / 1) * ((Genome)pop[pop.Count - 1]).Genes[0]) + this.x1min;
+            x[1] = (((this.x2max - this.x2min) / 1) * ((Genome)pop[pop.Count - 1]).Genes[1]) + this.x2min;
+
+            values = x;
+
+            fitness = ((Genome)pop[pop.Count - 1]).Fitness;
         }
     }
 }

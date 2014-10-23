@@ -38,6 +38,7 @@ namespace Value_Encoding
         public Genome(int length)
         {
             this.length = length;
+            this.genes = new double[this.length];
         }
 
         public void CreateGenes()
